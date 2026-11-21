@@ -1,7 +1,7 @@
-﻿// ==UserScript==
+// ==UserScript==
 // @name         Asahi Coupon Auto Get
 // @namespace    local.asahi.coupon
-// @version      1.0.0
+// @version      1.0.1
 // @description  アサヒビールの当選結果画面からクーポン受領画面まで自動遷移
 // @match        https://www.asahibeer-cp.jp/*
 // @match        https://asahibeer.s-coupon.net/*
@@ -10,6 +10,8 @@
 // @grant        none
 // @noframes
 // ==/UserScript==
+// @updateURL    https://github.com/myhomeayu/asahibeer/raw/main/asahi-coupon-get.js
+// @downloadURL  https://github.com/myhomeayu/asahibeer/raw/main/asahi-coupon-get.js
 
 (() => {
     'use strict';
