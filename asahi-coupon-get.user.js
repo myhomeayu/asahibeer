@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Asahi Coupon Auto Get
 // @namespace    local.asahi.coupon
-// @version      1.0.5
+// @version      1.0.6
 // @description  アサヒビールの当選結果画面からクーポン受領画面まで自動遷移
 // @match        https://www.asahibeer-cp.jp/*
 // @match        https://asahibeer.s-coupon.net/*
 // @match        https://coupon.sej.co.jp/*
+// @match        https://ncpfa.famima.com/prd/ebcweb*
 // @run-at       document-idle
 // @grant        none
 // @noframes
@@ -16,7 +17,7 @@
 (() => {
     'use strict';
     const MESSAGE = 'アサヒビールLINE公式アカウント当選連絡の配信バナーをご確認ください。';
-    const HOSTS = new Set(['www.asahibeer-cp.jp', 'asahibeer.s-coupon.net', 'coupon.sej.co.jp']);
+    const HOSTS = new Set(['www.asahibeer-cp.jp', 'asahibeer.s-coupon.net', 'coupon.sej.co.jp', 'ncpfa.famima.com']);
     const log = message => console.log(`[Asahi Coupon] ${message}`);
     const nonempty = (url, key) => Boolean(url.searchParams.get(key)?.trim());
     // br・要素境界・全角空白等による表示上の区切りだけを無視する。
@@ -30,6 +31,10 @@
         if (url.hostname === 'www.asahibeer-cp.jp') return 'result';
         if (url.hostname === 'coupon.sej.co.jp') {
             return url.pathname === '/order/cpnsp_03.do' && nonempty(url, 'hansoku_id') ? 'final' : null;
+        }
+        // ファミリーマートも指定パスと空でないeKeyを満たす場合だけ最終画面とする。
+        if (url.hostname === 'ncpfa.famima.com') {
+            return url.pathname === '/prd/ebcweb' && nonempty(url, 'eKey') ? 'final' : null;
         }
         if (!nonempty(url, 'sn')) return null;
         // 実画面の順序：案内 / → 利用確認 /confirm/ → 発券 /issue/。
