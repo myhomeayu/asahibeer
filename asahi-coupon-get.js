@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Asahi Coupon Auto Get
 // @namespace    local.asahi.coupon
-// @version      1.0.1
+// @version      1.0.4
 // @description  アサヒビールの当選結果画面からクーポン受領画面まで自動遷移
 // @match        https://www.asahibeer-cp.jp/*
 // @match        https://asahibeer.s-coupon.net/*
@@ -19,6 +19,9 @@
     const HOSTS = new Set(['www.asahibeer-cp.jp', 'asahibeer.s-coupon.net', 'coupon.sej.co.jp']);
     const log = message => console.log(`[Asahi Coupon] ${message}`);
     const nonempty = (url, key) => Boolean(url.searchParams.get(key)?.trim());
+    // br・要素境界・全角空白等による表示上の区切りだけを無視する。
+    // 文言自体は省略せず、全文の一致を引き続き必須とする。
+    const normalizeMessage = text => text.replace(/[\s\u200B\uFEFF]+/gu, '');
 
     // URLオブジェクトでドメイン・パス・パラメータの存在を厳密に判定する。
     function classify(url) {
@@ -29,7 +32,10 @@
             return url.pathname === '/order/cpnsp_03.do' && nonempty(url, 'hansoku_id') ? 'final' : null;
         }
         if (!nonempty(url, 'sn')) return null;
-        return url.pathname === '/issue/' ? 'issue' : url.pathname === '/confirm/' ? 'confirm' : null;
+        // 実画面の順序：案内 / → 利用確認 /confirm/ → 発券 /issue/。
+        if (url.pathname === '/') return 'guide';
+        if (url.pathname === '/issue/') return 'issue';
+        return url.pathname === '/confirm/' ? 'confirm' : null;
     }
 
     const initial = new URL(window.location.href);
@@ -74,8 +80,8 @@
 
     // STEP 1：画面に当選メッセージがある場合のみ、idでinputを取得する。
     function resultButton() {
-        if (!(document.body?.innerText || '').includes(MESSAGE)) {
-            stop('当選メッセージが存在しないため操作しません');
+        if (!normalizeMessage(document.body?.innerText || '').includes(normalizeMessage(MESSAGE))) {
+            // 遅れて表示される結果も最大待機時間まで監視し、未検出時は操作しない。
             return null;
         }
         if (!winLogged) { winLogged = true; log('当選メッセージを検出'); }
@@ -105,8 +111,12 @@
             try {
                 const url = new URL(link.getAttribute('href'), document.baseURI);
                 const target = classify(url);
-                if ((step === 'issue' && (target === 'confirm' || target === 'final'))
-                    || (step === 'confirm' && target === 'final')) candidates.push(link);
+                const confirmedIssue = step === 'confirm' && target === 'issue'
+                    && url.searchParams.get('sn') === initial.searchParams.get('sn');
+                // 戻るリンクは候補にしない。発券ページからconfirmへは戻らない。
+                if (target === 'final'
+                    || (step === 'guide' && target === 'confirm')
+                    || confirmedIssue) candidates.push(link);
             } catch { /* 解析できないhrefは無視し、値はログに出さない。 */ }
         }
         if (candidates.length > 1) {
@@ -150,7 +160,8 @@
     function start() {
         if (stopped || observer) return;
         try {
-            log(step === 'issue' ? 'クーポン発行ページを検出'
+            log(step === 'guide' ? 'クーポン案内ページを検出'
+                : step === 'issue' ? 'クーポン発行ページを検出'
                 : step === 'confirm' ? 'クーポン確認ページを検出' : '当選結果ページを確認');
             observer = new MutationObserver(check);
             observer.observe(document.documentElement, {
